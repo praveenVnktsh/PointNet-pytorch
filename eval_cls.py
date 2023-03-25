@@ -3,8 +3,10 @@ import argparse
 
 import torch
 from models import cls_model
-from utils import create_dir
+from data_loader import get_data_loader
 
+from utils import create_dir, viz_seg, viz_cls
+from tqdm import tqdm
 def create_parser():
     """Creates a parser for command-line arguments.
     """
@@ -14,12 +16,12 @@ def create_parser():
     parser.add_argument('--num_points', type=int, default=10000, help='The number of points per object to be included in the input data')
 
     # Directories and checkpoint/sample iterations
-    parser.add_argument('--load_checkpoint', type=str, default='model_epoch_0')
+    parser.add_argument('--load_checkpoint', type=str, default='model_epoch_30')
     parser.add_argument('--i', type=int, default=0, help="index of the object to visualize")
 
     parser.add_argument('--test_data', type=str, default='./data/cls/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/cls/label_test.npy')
-    parser.add_argument('--output_dir', type=str, default='./output')
+    parser.add_argument('--output_dir', type=str, default='./output/cls/')
 
     parser.add_argument('--exp_name', type=str, default="exp", help='The name of the experiment')
 
@@ -34,8 +36,11 @@ if __name__ == '__main__':
     create_dir(args.output_dir)
 
     # ------ TO DO: Initialize Model for Classification Task ------
-    model = 
-    
+    model = cls_model()
+    args.main_dir = './data/'
+    args.task = 'cls'
+    args.batch_size = 2
+    args.num_workers = 0
     # Load Model Checkpoint
     model_path = './checkpoints/cls/{}.pt'.format(args.load_checkpoint)
     with open(model_path, 'rb') as f:
@@ -51,9 +56,27 @@ if __name__ == '__main__':
     test_label = torch.from_numpy(np.load(args.test_label))
 
     # ------ TO DO: Make Prediction ------
-    pred_label = 
+    test_dataloader = get_data_loader(args=args, train=False)
+    outputs = []
+    test_label = []
+    for batch in tqdm(test_dataloader):
+        point_clouds, labels = batch
+        if len(point_clouds) < 2:
+            continue
+        test_label.append(labels)
+        outputs.append(torch.argmax(model(point_clouds).view(-1, 3), dim = 1))
+
+    pred_label = torch.stack(outputs, dim=0).squeeze().flatten()
+    test_label = torch.stack(test_label, dim=0).squeeze().flatten()
+
+    wrongindices = pred_label != test_label
+    print("wrong indices: {}".format((wrongindices.nonzero().flatten().tolist())))
 
     # Compute Accuracy
+    print(test_label.shape, pred_label.shape)
     test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
     print ("test accuracy: {}".format(test_accuracy))
+
+    for i in tqdm(range(0, len(test_label))):
+        viz_cls(test_data[i], test_label[i], pred_label[i].item(), "{}/gt_{}_{}.gif".format(args.output_dir, args.exp_name, i), args.device)
 

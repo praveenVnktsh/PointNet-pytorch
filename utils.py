@@ -8,7 +8,8 @@ from pytorch3d.renderer import (
     PointsRasterizer,
 )
 import imageio
-
+import numpy as np
+import cv2
 def save_checkpoint(epoch, model, args, best=False):
     if best:
         path = os.path.join(args.checkpoint_dir, 'best_model.pt')
@@ -24,7 +25,7 @@ def create_dir(directory):
         os.makedirs(directory)
 
 def get_points_renderer(
-    image_size=256, device=None, radius=0.01, background_color=(1, 1, 1)
+    image_size=256, device=None, radius=0.01, background_color=(0, 0, 0)
 ):
     """
     Returns a Pytorch3D renderer for point clouds.
@@ -52,13 +53,46 @@ def get_points_renderer(
     return renderer
 
 
+
+
+
+def viz_cls(verts, gt, results, path, device):
+    """
+    visualize segmentation result
+    output: a 360-degree gif
+    """
+    image_size=256
+    background_color=(0, 0, 0)
+
+    # Construct various camera viewpoints
+    dist = 3
+    elev = 0
+    azim = [180 - 12*i for i in range(30)]
+    R, T = pytorch3d.renderer.cameras.look_at_view_transform(dist=dist, elev=elev, azim=azim, device=device)
+    c = pytorch3d.renderer.FoVPerspectiveCameras(R=R, T=T, fov=60, device=device)
+
+    sample_verts = verts.unsqueeze(0).repeat(30,1,1).to(torch.float)
+    sample_colors = torch.ones_like(sample_verts) * 0.7
+
+    point_cloud = pytorch3d.structures.Pointclouds(points=sample_verts, features=sample_colors).to(device)
+
+    renderer = get_points_renderer(image_size=image_size, background_color=background_color, device=device)
+    rend = renderer(point_cloud, cameras=c).cpu().numpy() # (30, 256, 256, 3)
+    rend = (rend * 255).astype(np.uint8)
+    for r in rend:
+        # put text 
+        r = cv2.putText(r, 'GT: {}'.format(gt), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        r = cv2.putText(r, 'Pred: {}'.format(results), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)    
+    imageio.mimsave(path, rend, fps=15)
+
+
 def viz_seg (verts, labels, path, device):
     """
     visualize segmentation result
     output: a 360-degree gif
     """
     image_size=256
-    background_color=(1, 1, 1)
+    background_color=(0, 0, 0)
     colors = [[1.0,1.0,1.0], [1.0,0.0,1.0], [0.0,1.0,1.0],[1.0,1.0,0.0],[0.0,0.0,1.0], [1.0,0.0,0.0]]
 
     # Construct various camera viewpoints
@@ -82,6 +116,7 @@ def viz_seg (verts, labels, path, device):
 
     renderer = get_points_renderer(image_size=image_size, background_color=background_color, device=device)
     rend = renderer(point_cloud, cameras=c).cpu().numpy() # (30, 256, 256, 3)
+    rend = (rend * 255).astype(np.uint8)
 
     imageio.mimsave(path, rend, fps=15)
 

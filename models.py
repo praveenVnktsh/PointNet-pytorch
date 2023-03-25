@@ -43,36 +43,40 @@ class cls_model(nn.Module):
 class seg_model(nn.Module):
     def __init__(self, num_seg_classes = 6):
         super(seg_model, self).__init__()
-        pass
+        self.model1 = nn.Sequential(
+            nn.Linear(3, 64),   
+            nn.ReLU(),
+            nn.Linear(64, 64),   
+            nn.ReLU(),
+        )
+        self.model2 = nn.Sequential(
+            nn.Linear(64, 1024),
+            nn.ReLU(),
+        )
 
-    def forward(self, points, features):
+        self.concatmodel = nn.Sequential(
+            nn.Linear(1024 + 64, 512),
+            nn.ReLU(),
+            nn.Dropout(p=0.3),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Dropout(p=0.3),
+            nn.Linear(256, num_seg_classes),
+            nn.Softmax(dim=2)
+        )
+
+    def forward(self, points):
         '''
         points: tensor of size (B, N, 3)
                 , where B is batch size and N is the number of points per object (N=10000 by default)
         output: tensor of size (B, N, num_seg_classes)
         '''
-            # batch is Nx3
-        pass
-            # features is Bx1x1024
+        feature = self.model1(points)
+        feature2 =  self.model2(feature)
+        outputs, _ = torch.max(feature2, dim = 1, keepdim = True)
+        outputs = outputs.repeat(1, points.shape[1], 1)
+        newfeats = torch.cat([outputs, feature], dim = 2)
+        preds = self.concatmodel(newfeats).squeeze()
+        
+        return preds
 
-            
-
-
-
-
-# class PointNetNaive(nn.Module):
-#     def __init__(self, num_classes=3):
-#         super(PointNetNaive, self).__init__()
-#         self.segnet = seg_model()
-#         self.clsnet = cls_model(num_classes)
-
-#     def forward(self, points):
-#         '''
-#         points: tensor of size (B, N, 3)
-#                 , where B is batch size and N is the number of points per object (N=10000 by default)
-#         output: tensor of size (B, num_classes)
-#         '''
-#         classes, features = self.clsnet(points)
-#         segs = self.segnet(features)
-
-#         return torch.stack(outputs)
