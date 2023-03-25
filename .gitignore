@@ -1,0 +1,7 @@
+logs/
+.vscode/
+*.pyc
+data/
+*.zip
+checkpoints/
+dataset.zip
