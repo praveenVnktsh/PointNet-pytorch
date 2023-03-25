@@ -9,17 +9,19 @@ class cls_model(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(3, 64),   
             nn.ReLU(),
-            nn.Linear(64, 128),
+            nn.Linear(64, 64),   
             nn.ReLU(),
-            nn.Linear(128, 1024),
+            nn.Linear(64, 1024),
             nn.ReLU(),
         )
 
         self.classifier = nn.Sequential(
             nn.Linear(1024, 512),
             nn.ReLU(),
+            nn.Dropout(p=0.3),
             nn.Linear(512, 256),
             nn.ReLU(),
+            nn.Dropout(p=0.3),
             nn.Linear(256, num_classes),
             nn.Softmax(dim=1)
         )
@@ -30,13 +32,10 @@ class cls_model(nn.Module):
                 , where B is batch size and N is the number of points per object (N=10000 by default)
         output: tensor of size (B, num_classes)
         '''
-        outputs = []
-        for batch in points:
-            feature = self.model(batch)
-            output, _ = torch.max(feature, dim=0, keepdim=True)
-            outputs.append(self.classifier(output))
-        
-        return torch.cat(outputs, dim = 0)
+        feature = self.model(points)
+        outputs, _ = torch.max(feature, dim = 1, keepdim = True)
+        out = self.classifier(outputs.squeeze())
+        return out
 
 
 

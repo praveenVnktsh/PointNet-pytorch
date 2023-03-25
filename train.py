@@ -13,24 +13,23 @@ def train(train_dataloader, model, opt, epoch, args, writer):
     model.train()
     step = epoch*len(train_dataloader)
     epoch_loss = 0
-
-    for i, batch in tqdm(enumerate(train_dataloader), total = len(train_dataloader)):
+    pbar =tqdm(enumerate(train_dataloader), total = len(train_dataloader))
+    for i, batch in pbar:
         point_clouds, labels = batch
         point_clouds = point_clouds.to(args.device)
         labels = labels.to(args.device).to(torch.long)
-
         # ------ TO DO: Forward Pass ------
         predictions = model(point_clouds)
 
         if (args.task == "seg"):
             labels = labels.reshape([-1])
             predictions = predictions.reshape([-1, args.num_seg_class])
-            
         # Compute Loss
         criterion = torch.nn.CrossEntropyLoss()
         loss = criterion(predictions, labels)
         epoch_loss += loss
 
+        pbar.set_description("Epoch: {}, Loss: {:.4f}".format(epoch, epoch_loss/(i+1)))
         # Backward and Optimize
         opt.zero_grad()
         loss.backward()
@@ -55,8 +54,9 @@ def test(test_dataloader, model, epoch, args, writer):
 
             # ------ TO DO: Make Predictions ------
             with torch.no_grad():
+
                 pred_labels = torch.argmax(model(point_clouds), dim = 1)
-                
+            
             correct_obj += pred_labels.eq(labels.data).cpu().sum().item()
             num_obj += labels.size()[0]
 
@@ -129,12 +129,12 @@ def main(args):
     for epoch in range(args.num_epochs):
 
         # Train
-        train_epoch_loss = train(train_dataloader, model, opt, epoch, args, writer)
         current_acc = test(test_dataloader, model, epoch, args, writer)
+        print ("epoch: {} | test accuracy: {:.4f}".format(epoch, current_acc))
+        train_epoch_loss = train(train_dataloader, model, opt, epoch, args, writer)
         
         # Test
 
-        print ("epoch: {}   train loss: {:.4f}   test accuracy: {:.4f}".format(epoch, train_epoch_loss, current_acc))
         
         # Save Model Checkpoint Regularly
         if epoch % args.checkpoint_every == 0:
@@ -172,7 +172,7 @@ def create_parser():
     parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints')
     parser.add_argument('--checkpoint_every', type=int , default=10)
 
-    parser.add_argument('--load_checkpoint', type=str, default='')
+    parser.add_argument('--load_checkpoint', type=bool, default = False)
     
 
     return parser
@@ -184,4 +184,5 @@ if __name__ == '__main__':
     args.device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
     args.checkpoint_dir = args.checkpoint_dir+"/"+args.task # checkpoint directory is task specific
 
+    print(args)
     main(args)
