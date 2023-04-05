@@ -7,9 +7,7 @@ from tqdm import tqdm
 from models import cls_model, seg_model
 from data_loader import get_data_loader
 from utils import save_checkpoint, create_dir
-from dgcnn import DGCNN
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+from pointnetplus import seg_model
 def train(train_dataloader, model, opt, epoch, args, writer):
     
     model.train()
@@ -77,7 +75,8 @@ def test(test_dataloader, model, epoch, args, writer):
 
             # ------ TO DO: Make Predictions ------
             with torch.no_grad():     
-                pred_labels = torch.argmax(model(point_clouds), dim = 2)
+                out = model(point_clouds)
+                pred_labels = torch.argmax(out, dim = 1)
 
             correct_point += pred_labels.eq(labels.data).cpu().sum().item()
             num_point += labels.view([-1,1]).size()[0]
@@ -102,7 +101,7 @@ def main(args):
 
     # ------ TO DO: Initialize Model ------
     if args.task == "cls":
-        model = DGCNN(args, 3).cuda()
+        model = cls_model(3).cuda()
     else:
         model = seg_model().cuda()
     
@@ -158,12 +157,12 @@ def create_parser():
     parser = argparse.ArgumentParser()
 
     # Model & Data hyper-parameters
-    parser.add_argument('--task', type=str, default="cls", help='The task: cls or seg')
+    parser.add_argument('--task', type=str, default="seg", help='The task: cls or seg')
     parser.add_argument('--num_seg_class', type=int, default=6, help='The number of segmentation classes')
 
     # Training hyper-parameters
     parser.add_argument('--num_epochs', type=int, default=250)
-    parser.add_argument('--batch_size', type=int, default=5, help='The number of images in a batch.')
+    parser.add_argument('--batch_size', type=int, default=1, help='The number of images in a batch.')
     parser.add_argument('--num_workers', type=int, default=0, help='The number of threads to use for the DataLoader.')
     parser.add_argument('--lr', type=float, default=0.001, help='The learning rate (default 0.001)')
 

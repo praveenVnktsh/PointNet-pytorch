@@ -9,17 +9,17 @@ import torch.nn.functional as F
 
 
 def knn(x, k):
-
+    # taken from online sources
     inner_prod = -2*torch.matmul(x.transpose(2, 1), x)
     xx = torch.sum(x**2, dim=1, keepdim=True)
-    distances = torch.sum(x**2, dim=1, keepdim=True) + inner_prod + xx.transpose(2, 1)
+    distances = - xx - inner_prod - xx.transpose(2, 1)
     idx = distances.topk(k=k, dim=-1)[1]  
     return idx
 
 
 def get_graph_feature(x, k=20, idx=None):
     batch_size = x.size(0)
-    num_points = x.size(2)
+    num_points = x.size(1)
     x = x.view(batch_size, -1, num_points)
 
     idx = knn(x, k=k)   # (batch_size, num_points, k)
@@ -28,16 +28,15 @@ def get_graph_feature(x, k=20, idx=None):
 
     idx = (idx + idx_base).flatten()
 
-    _, num_dims, _ = x.size()
-    # TODO: check idx size and see if any reshaping is needed
-    # TODO: check x size and see if any reshaping is needed
-
-    # (batch_size, num_points, num_dims)  -> (batch_size*num_points, num_dims) #   batch_size * num_points * k + range(0, batch_size*num_points)
+    num_dims = x.size(1)
+    # (batch_size, num_points, num_dims)  -> (batch_size*num_points, num_dims) 
+    #  batch_size * num_points * k + range(0, batch_size*num_points)
     feature = x.view(batch_size*num_points, -1)[idx, :]
     feature = feature.view(batch_size, num_points, k, num_dims)  # B x N x K x D
     # TODO: convert x = B x N x 1 x D to shape x = B x N x k x D (hint: repeating the elements in that dimension)
     x = x.view(batch_size, num_points, 1, num_dims).repeat(1, 1, k, 1)
     feature = torch.cat((feature-x, x), dim=3)
+    feature = feature.view(batch_size, num_dims * 2,  k, num_points)
   
     return feature
 
@@ -53,7 +52,7 @@ class DGCNN(nn.Module):
         # TODO: 1 final Linear layer
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=1, bias=False),
+            nn.Conv2d(6, 64, kernel_size=1, bias=False),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
@@ -77,7 +76,7 @@ class DGCNN(nn.Module):
         )
 
         self.linear = nn.Sequential(
-            nn.Linear(73, 256),
+            nn.Linear(82, 256),
             nn.BatchNorm1d(256),
             nn.Dropout(p=0.5),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
@@ -92,31 +91,15 @@ class DGCNN(nn.Module):
     def forward(self, x):
         batch_size = x.size(0)
         x = get_graph_feature(x, k=self.k)
-        # TODO: conv
-        # TODO: max -> x1
         x = self.conv1(x)
         x1 = x.max(dim=-1, keepdim=False)[0]
-
         x = get_graph_feature(x1, k=self.k)
         x2 = x.max(dim=-1, keepdim=False)[0]
-        # TODO: conv
-        # TODO: max -> x2
-
-
         x = get_graph_feature(x2, k=self.k)
         x3 = x.max(dim=-1, keepdim=False)[0]
-        # TODO: conv
-        # TODO: max -> x3
-
         x = get_graph_feature(x3, k=self.k)
         x4 = x.max(dim=-1, keepdim=False)[0]
-        # TODO: conv
-        # TODO: max -> x4
-
         x = torch.cat((x1, x2, x3, x4), dim=1)
-
-
         x1 = F.adaptive_max_pool1d(x, 1).view(batch_size, -1)
-        # x2 = F.adaptive_avg_pool1d(x, 1).view(batch_size, -1)
         x = self.linear(x1)
         return x
