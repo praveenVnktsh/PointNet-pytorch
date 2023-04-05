@@ -121,7 +121,7 @@ We can see that the model is able to perform segmentation even when the number o
     <td> <img src = "output/seg_lowpoints_100/pred_exp_600.gif" /> </td>
     <td> <img src = "output/seg_lowpoints_100/pred_exp_100.gif" /> </td>
   <td> Accuracy = 89.4% </td>
-</tr>
+</tr>       
 <tr>
     <th>500 points</th>
     <td> <img src = "output/seg_lowpoints_500/pred_exp_500.gif" /> </td>
