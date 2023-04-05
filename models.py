@@ -79,4 +79,3 @@ class seg_model(nn.Module):
         preds = self.concatmodel(newfeats).squeeze()
         
         return preds
-
