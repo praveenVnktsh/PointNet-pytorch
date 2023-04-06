@@ -107,7 +107,7 @@ def main(args):
     
     # Load Checkpoint 
     if args.load_checkpoint:
-        model_path = "{}/{}.pt".format(args.checkpoint_dir,args.load_checkpoint)
+        model_path = "{}/pointnet_knn_{}.pt".format(args.checkpoint_dir,args.load_checkpoint)
         with open(model_path, 'rb') as f:
             state_dict = torch.load(f, map_location=args.device)
             model.load_state_dict(state_dict)

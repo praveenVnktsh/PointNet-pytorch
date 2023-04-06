@@ -86,7 +86,7 @@ def viz_cls(verts, gt, results, path, device):
     imageio.mimsave(path, rend, fps=15)
 
 
-def viz_seg (verts, labels, path, device):
+def viz_seg (verts, labels, path, device,):
     """
     visualize segmentation result
     output: a 360-degree gif
@@ -118,6 +118,8 @@ def viz_seg (verts, labels, path, device):
     renderer = get_points_renderer(image_size=image_size, background_color=background_color, device=device)
     rend = renderer(point_cloud, cameras=c).cpu().numpy() # (30, 256, 256, 3)
     rend = (rend * 255).astype(np.uint8)
-
+    # for r in rend:
+    #     # put text 
+    #     r = cv2.putText(r, 'Accuracy: {}'.format(str(round(accuracy, 2) * 100)), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
     imageio.mimsave(path, rend, fps=15)
 

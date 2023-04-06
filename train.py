@@ -156,7 +156,7 @@ def create_parser():
     parser = argparse.ArgumentParser()
 
     # Model & Data hyper-parameters
-    parser.add_argument('--task', type=str, default="cls", help='The task: cls or seg')
+    parser.add_argument('--task', type=str, default="seg", help='The task: cls or seg')
     parser.add_argument('--num_seg_class', type=int, default=6, help='The number of segmentation classes')
 
     # Training hyper-parameters
